@@ -43,7 +43,7 @@ class MyEnvironment(Environment):
         #initialize incidents
         self._incidents = [
             Incident(
-                id=f"inc_{i}",
+                incident_id=f"inc_{i}",
                 type=random.choice(["fire", "flood", "medical"]),
                 severity=random.choice(["low", "medium", "high"]),
                 location=f"zone_{i}",
@@ -183,5 +183,5 @@ class MyEnvironment(Environment):
         # -------------------------
     @property
     def state(self) -> State:
-            return self._state_meta
+            return self._state
     

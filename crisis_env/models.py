@@ -1,7 +1,5 @@
-
-
 from openenv.core.env_server.types import Action, Observation
-from pydantic import Field
+from pydantic import BaseModel, Field
 from typing import List, Literal, Optional
 
 
@@ -34,26 +32,24 @@ SeverityLevel = Literal["low", "medium", "high", "critical"]
 # NESTED STRUCTURES
 # -------------------------
 
-class Incident:
-    id: str = Field(..., description="Unique incident ID")
+class Incident(BaseModel):
+    incident_id: str = Field(..., description="Unique incident ID")
     type: IncidentType
     severity: SeverityLevel
     location: str
-    people_affected: int
-    resolved: bool = False
+    people_affected: int = Field(..., ge=0)
+    resolved: bool = Field(default=False)
 
 
-class Resource:
-    type: str = Field(..., description="Type of resource (ambulance, firetruck, etc.)")
-    available: int
-    in_use: int
+class Resource(BaseModel):
+    type: str = Field(..., description="Type of resource (ambulance, fire_truck, etc.)")
+    available: int = Field(..., ge=0)
+    in_use: int = Field(..., ge=0)
 
 
 # -------------------------
 # ACTION MODEL
 # -------------------------
-
-
 
 class MyAction(Action):
 
@@ -67,13 +63,14 @@ class MyAction(Action):
         None, description="Type of resource to allocate"
     )
 
-    amount: Optional[int] = Field(
-        0, description="Amount of resource to allocate"
+    amount: int = Field(
+        default=0, ge=0, description="Amount of resource to allocate"
     )
 
     priority: Optional[int] = Field(
-        None, description="Priority level for incident (1 = highest)"
+        None, ge=1, le=5, description="Priority level (1 = highest)"
     )
+
 
 # -------------------------
 # OBSERVATION MODEL
@@ -84,29 +81,35 @@ class MyObservation(Observation):
     Observation returned to the agent after each step.
     """
 
-    # Core system state
-    time_step: int = Field(..., description="Current time step")
+    # Time tracking
+    time_step: int = Field(..., ge=0, description="Current time step")
+
+    # Core state
     active_incidents: List[Incident] = Field(
-        default_factory=list, description="List of active incidents"
+        default_factory=list,
+        description="List of active (unresolved) incidents"
     )
 
     resources: List[Resource] = Field(
-        default_factory=list, description="Available resources"
+        default_factory=list,
+        description="Current resource availability"
     )
 
-    # Aggregated metrics (important for learning signal)
-    total_people_affected: int = Field(..., description="Total impacted population")
-    resolved_incidents: int = Field(..., description="Number of resolved incidents")
+    # Metrics
+    total_people_affected: int = Field(..., ge=0)
+    resolved_incidents: int = Field(..., ge=0)
 
-    # System health indicators
+    # System health
     system_load: float = Field(
-        ..., description="Ratio of used resources to total resources"
+        ..., ge=0.0, le=1.0,
+        description="Used resources / total resources"
     )
 
     response_efficiency: float = Field(
-        ..., description="Effectiveness of actions taken (0-1)"
+        ..., ge=0.0, le=1.0,
+        description="Quality of decisions (computed internally)"
     )
 
-    # Episode signals
-    done: bool = Field(..., description="Whether episode has ended")
-    reward: float = Field(..., description="Reward from last step")
+    # OpenEnv required signals
+    done: bool = Field(..., description="Episode termination flag")
+    reward: float = Field(..., description="Reward from last action")

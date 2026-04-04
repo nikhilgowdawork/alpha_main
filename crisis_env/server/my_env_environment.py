@@ -56,6 +56,25 @@ class MyEnvironment(Environment):
 
     def step(self, action: MyAction):
 
+        # Auto-reset if not reset yet
+        if self._time_step == 0:
+            self._state = State(episode_id=str(uuid4()), step_count=0)
+            self._incidents = [
+                Incident(
+                    incident_id=f"inc_{i}",
+                    type=random.choice(["fire", "flood", "medical"]),
+                    severity=random.choice(["low", "medium", "high"]),
+                    location=f"zone_{i}",
+                    people_affected=random.randint(50, 200),
+                    resolved=False,
+                )
+                for i in range(2)
+            ]
+            self._resources = [
+                Resource(type="ambulance", available=5, in_use=0),
+                Resource(type="firetruck", available=3, in_use=0),
+            ]
+
         self._state.step_count += 1
         self._time_step += 1
 

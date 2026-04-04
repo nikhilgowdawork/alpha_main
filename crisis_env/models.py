@@ -87,6 +87,21 @@ class MyAction(Action):
         description="Priority level (1 = highest)"
     )
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "action_type": "dispatch_team",
+                "incident_id": None,
+                "resource_type": None,
+                "amount": 0,
+                "priority": None
+            }
+        }
+    )
+
+# Rebuild the model to apply the config
+MyAction.model_rebuild()
+
 
 # -------------------------
 # OBSERVATION MODEL

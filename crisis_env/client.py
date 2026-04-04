@@ -10,7 +10,7 @@ class myEnv(EnvClient[MyAction, MyObservation, State]):
 
     def _step_payload(self, action: MyAction) -> Dict:
         return {
-            "action_type": action.action_type
+            "action": action.dict()
         }
     
     def _parse_result(self, payload: Dict) -> StepResult[MyObservation]:

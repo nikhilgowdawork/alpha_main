@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient
+from openai import OpenAI
 
 from tasks.task_easy import create_easy_task
 from tasks.task_medium import create_medium_task
@@ -15,11 +15,10 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 if not HF_TOKEN:
     raise ValueError("HF_TOKEN not found in .env file")
 
-#initialize HF client
-
-client = InferenceClient(
-    model="mistralai/Mistral-7B-Instruct-v0.2",
-    token=HF_TOKEN
+#initialize OpenAI client
+client = OpenAI(
+    api_key=HF_TOKEN,
+    base_url="https://api-inference.huggingface.co/v1/"
 )
 
 def run_task(task):
@@ -38,14 +37,14 @@ IMPORTANT:
 Situation:
 {observation}
 """
-    response = client.text_generation(
-        prompt,
-        max_new_tokens=200,
+    response = client.chat.completions.create(
+        model="Qwen/Qwen2.5-72B-Instruct",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=200,
         temperature=0
-
     )
 
-    output = response.strip()
+    output = response.choices[0].message.content.strip()
 
     
     #try prasing JSON (for  medium/hard tasks)

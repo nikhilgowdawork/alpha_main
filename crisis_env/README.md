@@ -1,53 +1,143 @@
 ---
-title: My Env Environment Server
-emoji: 🎺
-colorFrom: gray
-colorTo: yellow
+title: Crisis Response Coordinator Environment
+emoji: 🚨
+colorFrom: red
+colorTo: blue
 sdk: docker
 pinned: false
 app_port: 8000
 base_path: /web
 tags:
   - openenv
+  - real-world
+  - crisis-management
+  - decision-making
 ---
 
-# My Env Environment
+# Crisis Response Coordinator Environment
 
-A simple test environment that echoes back messages. Perfect for testing the env APIs as well as demonstrating environment usage patterns.
+A real-world OpenEnv environment simulating crisis response coordination. The agent must manage emergency incidents by dispatching resources, allocating supplies, requesting backup, broadcasting alerts, prioritizing incidents, and resolving crises to minimize impact on affected people.
 
-## Quick Start
+## Environment Description
 
-The simplest way to use the My Env environment is through the `MyEnv` class:
+This environment models a crisis response scenario where multiple incidents (fires, floods, medical emergencies) occur simultaneously. The agent acts as a coordinator making decisions to:
 
-```python
-from my_env import MyAction, MyEnv
+- Dispatch available resources to incidents
+- Allocate specific resource types
+- Request additional backup resources
+- Broadcast public alerts to slow crisis spread
+- Prioritize high-severity incidents
+- Resolve incidents to stop the crisis
 
-try:
-    # Create environment from Docker image
-    my_envenv = MyEnv.from_docker_image("my_env-env:latest")
+The goal is to resolve all incidents as quickly as possible while managing limited resources and system load.
 
-    # Reset
-    result = my_envenv.reset()
-    print(f"Reset: {result.observation.echoed_message}")
+## Action Space
 
-    # Send multiple messages
-    messages = ["Hello, World!", "Testing echo", "Final message"]
+Actions are defined by the `MyAction` model:
 
-    for msg in messages:
-        result = my_envenv.step(MyAction(message=msg))
-        print(f"Sent: '{msg}'")
-        print(f"  → Echoed: '{result.observation.echoed_message}'")
-        print(f"  → Length: {result.observation.message_length}")
-        print(f"  → Reward: {result.reward}")
+- `action_type`: One of ["dispatch_team", "allocate_resource", "request_backup", "broadcast_alert", "prioritize_incident", "resolve_incident", "do_nothing"]
+- `incident_id`: Target incident ID (required for prioritize_incident, resolve_incident)
+- `resource_type`: Resource type to allocate (required for allocate_resource)
+- `amount`: Quantity to allocate
+- `priority`: Priority level (1-5)
 
-finally:
-    # Always clean up
-    my_envenv.close()
+## Observation Space
+
+Observations are defined by the `MyObservation` model:
+
+- `time_step`: Current simulation step
+- `active_incidents`: List of ongoing incidents with id, type, severity, location, people_affected, resolved
+- `resources`: List of available resources with type, available count, in_use count
+- `total_people_affected`: Total people impacted across all incidents
+- `resolved_incidents`: Number of incidents resolved
+- `system_load`: Current system load (0.0-1.0)
+- `response_efficiency`: Response efficiency metric (0.0-1.0)
+- `done`: Whether all incidents are resolved
+- `reward`: Step reward (negative for growing crises, positive for resolutions)
+
+## Reward Function
+
+The reward provides partial progress signals:
+
+- **Penalty**: -0.01 per person affected (encourages quick resolution)
+- **Resolution Bonus**: +10 per incident resolved in the step
+- **Priority Bonus**: +5 per high-severity incident (rewards handling critical cases)
+- **Alert Effect**: Broadcasting alerts halves incident growth rates
+
+Episode ends when all incidents are resolved (done=True).
+
+## Tasks
+
+Three difficulty levels with agent graders:
+
+- **Easy**: Classify incident urgency (low/medium/high)
+- **Medium**: Allocate resources to incidents
+- **Hard**: Multi-incident crisis coordination and prioritization
+
+Graders return scores from 0.0 to 1.0 based on accuracy and partial credit.
+
+## Setup Instructions
+
+### Local Development
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-That's it! The `MyEnv.from_docker_image()` method handles:
-- Starting the Docker container
-- Waiting for the server to be ready
+2. Set up environment variables in `.env`:
+```
+HF_TOKEN=your_huggingface_token
+```
+
+3. Run the server:
+```bash
+cd crisis_env
+python -m server.app
+```
+
+4. Test the environment:
+```python
+from client import MyEnv
+
+env = MyEnv.from_docker_image("crisis-response-coordinator:latest")
+observation = env.reset()
+# ... interact with environment
+```
+
+### Docker Build
+
+```bash
+cd crisis_env
+docker build -t crisis-response-coordinator .
+docker run -p 8000:8000 crisis-response-coordinator
+```
+
+### Hugging Face Spaces Deployment
+
+The environment is configured for HF Spaces deployment with the Docker SDK. Push this repository to HF Spaces to deploy automatically.
+
+### Baseline Inference
+
+Run the baseline agent:
+```bash
+python inference.py
+```
+
+Run task baselines:
+```bash
+python baseline.py
+```
+
+## Requirements Compliance
+
+✅ Real-world task (crisis response coordination)  
+✅ Full OpenEnv spec (typed models, step/reset/state, openenv.yaml)  
+✅ 3 tasks with agent graders (easy→medium→hard, 0.0-1.0 scores)  
+✅ Meaningful reward with partial progress signals  
+✅ Baseline inference with reproducible scores  
+✅ HF Spaces + working Dockerfile  
+✅ Complete README with description, spaces, setup
 - Connecting to the environment
 - Container cleanup when you call `close()`
 
@@ -234,6 +324,24 @@ Run the server locally for development:
 ```bash
 uvicorn server.app:app --reload
 ```
+
+## Baseline Inference Script
+
+The repository includes a ready-to-run inference script that uses the OpenAI client and prints the required structured logs.
+
+```bash
+python inference.py
+```
+
+Required environment variables:
+- `API_BASE_URL`
+- `MODEL_NAME`
+- `HF_TOKEN` or `API_KEY`
+
+The script will emit:
+- `[START] ...`
+- `[STEP] ...`
+- `[END] ...`
 
 ## Project Structure
 

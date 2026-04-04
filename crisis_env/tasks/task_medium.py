@@ -27,7 +27,7 @@ class mediumtask:
     """
 
     incident : str
-    expected_reources : list[str]
+    expected_resources : list[str]
 
     def get_observation(self) -> Dict:
 

@@ -19,11 +19,11 @@ class hardtask:
         ]
     }
     """
-    incidents : list[str]
-    available_resources : list[str]
-    expected_plan : list[str]
+    incidents : List[Dict]
+    available_resources : List[str]
+    expected_plan : List[Dict]
 
-    def get_abservation(self) -> dict :
+    def get_observation(self) -> Dict:
 
         # what agent sees
 

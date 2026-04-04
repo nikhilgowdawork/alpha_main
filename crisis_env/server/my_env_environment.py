@@ -21,6 +21,7 @@ class MyEnvironment(Environment):
 
         self._incidents: List[Incident] = []
         self._resources: List[Resource] = []
+        self._alert_broadcasted = False  # Track if alert was broadcasted this episode
 
     # -------------------------
     # RESET
@@ -30,6 +31,7 @@ class MyEnvironment(Environment):
 
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self._time_step = 0
+        self._alert_broadcasted = False
 
         self._incidents = [
             Incident(
@@ -100,10 +102,47 @@ class MyEnvironment(Environment):
                     res.in_use += 1
                     break
 
+        elif action.action_type == "allocate_resource":
+            # allocate specific resource if specified
+            if action.resource_type:
+                for res in self._resources:
+                    if res.type == action.resource_type and res.available > 0:
+                        res.available -= 1
+                        res.in_use += 1
+                        break
+            else:
+                # default to any available
+                for res in self._resources:
+                    if res.available > 0:
+                        res.available -= 1
+                        res.in_use += 1
+                        break
+
+        elif action.action_type == "request_backup":
+            # request backup: add more resources
+            for res in self._resources:
+                res.available += 1
+
+        elif action.action_type == "broadcast_alert":
+            # broadcast alert: reduces people affected growth for next steps
+            self._alert_broadcasted = True
+
+        elif action.action_type == "prioritize_incident":
+            # prioritize incident: mark as high priority (could affect resolution)
+            if action.incident_id:
+                for inc in self._incidents:
+                    if inc.incident_id == action.incident_id:
+                        inc.severity = "high"  # upgrade to high if not already
+
         elif action.action_type == "resolve_incident" and action.incident_id:
             for inc in self._incidents:
                 if inc.incident_id == action.incident_id:
                     inc.resolved = True
+                    # bonus for resolving high severity
+                    if inc.severity == "high":
+                        pass  # could add extra reward, but handled in _compute_reward
+
+        # do_nothing does nothing
 
     # -------------------------
     # WORLD DYNAMICS
@@ -111,9 +150,12 @@ class MyEnvironment(Environment):
 
     def _update_dynamics(self):
 
+        growth_factor = 0.5 if self._alert_broadcasted else 1.0
+        self._alert_broadcasted = False  # reset after use
+
         for inc in self._incidents:
             if not inc.resolved:
-                inc.people_affected += random.randint(5, 20)
+                inc.people_affected += int(random.randint(5, 20) * growth_factor)
 
     # -------------------------
     # REWARD
@@ -123,8 +165,9 @@ class MyEnvironment(Environment):
 
         total_affected = sum(i.people_affected for i in self._incidents)
         resolved = sum(1 for i in self._incidents if i.resolved)
+        high_severity_bonus = sum(5 for i in self._incidents if i.resolved and i.severity == "high")
 
-        return resolved * 10.0 - total_affected * 0.01
+        return resolved * 10.0 + high_severity_bonus - total_affected * 0.005
 
     # -------------------------
     # DONE

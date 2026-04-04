@@ -1,5 +1,5 @@
 from openenv.core.env_server.types import Action, Observation
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Literal, Optional
 
 
@@ -33,6 +33,8 @@ SeverityLevel = Literal["low", "medium", "high", "critical"]
 # -------------------------
 
 class Incident(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     incident_id: str = Field(..., description="Unique incident ID")
     type: IncidentType
     severity: SeverityLevel
@@ -42,7 +44,9 @@ class Incident(BaseModel):
 
 
 class Resource(BaseModel):
-    type: str = Field(..., description="Type of resource (ambulance, fire_truck, etc.)")
+    model_config = ConfigDict(from_attributes=True)
+
+    type: str = Field(..., description="Resource type (ambulance, firetruck, etc.)")
     available: int = Field(..., ge=0)
     in_use: int = Field(..., ge=0)
 
@@ -53,22 +57,34 @@ class Resource(BaseModel):
 
 class MyAction(Action):
 
-    action_type: ActionType = Field(..., description="Type of action to execute")
+    action_type: ActionType = Field(
+        ..., 
+        description="Type of action",
+        examples=["dispatch_team"]
+    )
 
     incident_id: Optional[str] = Field(
-        None, description="Target incident ID (if applicable)"
+        None,
+        description="Target incident ID (required for resolve actions)",
+        examples=["inc_0"]
     )
 
     resource_type: Optional[str] = Field(
-        None, description="Type of resource to allocate"
+        None,
+        description="Type of resource to allocate"
     )
 
     amount: int = Field(
-        default=0, ge=0, description="Amount of resource to allocate"
+        default=0,
+        ge=0,
+        description="Amount of resource to allocate"
     )
 
     priority: Optional[int] = Field(
-        None, ge=1, le=5, description="Priority level (1 = highest)"
+        None,
+        ge=1,
+        le=5,
+        description="Priority level (1 = highest)"
     )
 
 
@@ -77,39 +93,24 @@ class MyAction(Action):
 # -------------------------
 
 class MyObservation(Observation):
-    """
-    Observation returned to the agent after each step.
-    """
 
-    # Time tracking
-    time_step: int = Field(..., ge=0, description="Current time step")
+    model_config = ConfigDict(from_attributes=True)
+
+    # Time
+    time_step: int = Field(..., ge=0)
 
     # Core state
-    active_incidents: List[Incident] = Field(
-        default_factory=list,
-        description="List of active (unresolved) incidents"
-    )
-
-    resources: List[Resource] = Field(
-        default_factory=list,
-        description="Current resource availability"
-    )
+    active_incidents: List[Incident] = Field(default_factory=list)
+    resources: List[Resource] = Field(default_factory=list)
 
     # Metrics
     total_people_affected: int = Field(..., ge=0)
     resolved_incidents: int = Field(..., ge=0)
 
     # System health
-    system_load: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Used resources / total resources"
-    )
+    system_load: float = Field(..., ge=0.0, le=1.0)
+    response_efficiency: float = Field(..., ge=0.0, le=1.0)
 
-    response_efficiency: float = Field(
-        ..., ge=0.0, le=1.0,
-        description="Quality of decisions (computed internally)"
-    )
-
-    # OpenEnv required signals
-    done: bool = Field(..., description="Episode termination flag")
-    reward: float = Field(..., description="Reward from last action")
+    # Required signals
+    done: bool
+    reward: float
